@@ -3,6 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GEMINI_API_KEY = "AIzaSyAdvNaGEjFHgTpRkk-IGWXMohtlg_XJBNo"
+GEMINI_API_KEY = ""
 if not GEMINI_API_KEY:
     raise RuntimeError("Missing GEMINI_API_KEY environment variable.")
