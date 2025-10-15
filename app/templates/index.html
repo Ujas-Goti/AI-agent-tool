@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AI Agent – Gemini + LangChain + Flask</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>AI Agent (Gemini + LangChain + Flask)</h1>
+      <div style="display: flex; gap: 8px;">
+        <button id="themeToggle">Light Mode</button>
+        <button id="resetBtn" title="Clear chat">Reset</button>
+      </div>
+    </header>
+
+    <div id="chat" class="chat"></div>
+
+    <form id="chatForm" class="composer">
+      <input id="msg" type="text" placeholder="Ask about code, docs, or debugging…" autocomplete="off" required />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <!-- ✅ Load marked.js -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <script>
+    const chatEl = document.getElementById('chat');
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('msg');
+    const resetBtn = document.getElementById('resetBtn');
+    const themeToggle = document.getElementById('themeToggle');
+
+    // ✅ Load chat history from localStorage
+    function loadHistory() {
+      const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+      history.forEach(msg => bubble(msg.role, msg.text, false));
+    }
+
+    // ✅ Save message to history
+    function saveToHistory(role, text) {
+      const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+      history.push({ role, text });
+      localStorage.setItem('chatHistory', JSON.stringify(history));
+    }
+
+    // ✅ Bubble renderer
+    function bubble(role, text, save = true) {
+      const el = document.createElement('div');
+      el.className = 'bubble ' + role;
+      el.innerHTML = role === 'assistant' ? marked.parse(text) : text;
+      chatEl.appendChild(el);
+      chatEl.scrollTop = chatEl.scrollHeight;
+      if (save) saveToHistory(role, text);
+    }
+
+    // ✅ Typing effect renderer
+    function bubbleStream(role, fullText) {
+      const el = document.createElement('div');
+      el.className = 'bubble ' + role;
+      chatEl.appendChild(el);
+
+      let i = 0;
+      function typeNext() {
+        if (i < fullText.length) {
+          el.innerHTML = marked.parse(fullText.slice(0, i + 1));
+          i++;
+          chatEl.scrollTop = chatEl.scrollHeight;
+          setTimeout(typeNext, 12);
+        } else {
+          saveToHistory(role, fullText);
+        }
+      }
+      typeNext();
+    }
+
+    // ✅ Submit chat message
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      bubble('user', text);
+      input.value = '';
+      bubble('assistant pending', '…');
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      });
+
+      document.querySelectorAll('.bubble.assistant.pending').forEach(b => b.remove());
+
+      if (!res.ok) {
+        bubble('assistant', 'Error: failed to reach API');
+        return;
+      }
+
+      const data = await res.json();
+      bubbleStream('assistant', data.reply);
+    });
+
+    // ✅ Reset chat
+    resetBtn.addEventListener('click', async () => {
+      await fetch('/api/reset', { method: 'POST' });
+      chatEl.innerHTML = '';
+      localStorage.removeItem('chatHistory');
+      bubble('assistant', 'Chat reset. How can I help?');
+    });
+
+    // ✅ Theme toggle
+    function applyTheme(isLight) {
+      document.body.classList.toggle('light-mode', isLight);
+      themeToggle.textContent = isLight ? 'Dark Mode' : 'Light Mode';
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+
+    themeToggle.addEventListener('click', () => {
+      const isLight = !document.body.classList.contains('light-mode');
+      applyTheme(isLight);
+    });
+
+    // ✅ Apply saved theme
+    const savedTheme = localStorage.getItem('theme') === 'light';
+    applyTheme(savedTheme);
+
+    // ✅ Load history on startup + greeting
+    window.addEventListener('DOMContentLoaded', () => {
+      loadHistory();
+      if (!localStorage.getItem('chatHistory')) {
+        bubble('assistant', 'Jai Bajrang Bali! I can explain code, draft docs, and troubleshoot.');
+      }
+    });
+  </script>
+</body>
+</html>
