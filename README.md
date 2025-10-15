@@ -49,14 +49,8 @@ http://localhost:5000
 
 ### ✅ Features
 - Light/Dark mode toggle  
-- Chat history (persistent)  
 - Streaming assistant replies  
 - Reset feature
-
-Chat history is saved here:
-```
-app/chat_history.json
-```
 
 To clear manually:
 ```bash
